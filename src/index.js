@@ -10,7 +10,7 @@ export default {
       console.log(JSON.stringify({ id, path: url.pathname, status: res.status, ms: Date.now() - t0, ...extra }));
       res.headers.set("x-request-id", id); res.headers.set("server-timing", `total;dur=${Date.now() - t0}`); return res;
     };
-    if (url.pathname === "/healthz") return done(json({ ok: true, version: "1.0.0" }));
+    if (url.pathname === "/healthz") return done(json({ ok: true, version: "1.1.0" }));
     if (url.pathname === "/api/evals") {
       if (await limited(req, env)) return done(json({ error: "Rate limit: try again in a minute." }, 429));
       return done(json(await runEvals(env)));

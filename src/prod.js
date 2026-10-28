@@ -7,7 +7,12 @@ export async function moderate(env, input) {
   return { safe: !/unsafe/i.test(r), raw: r.slice(0, 60) };
 }
 // Output guardrail: strip anything that looks like a secret or an email before returning.
-export const redact = (s) => String(s).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]").replace(/\b(sk|pk|ghp|xox[bp])[-_][A-Za-z0-9_-]{8,}\b/g, "[secret]");
+export const redact = (s) => String(s)
+  .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]")
+  .replace(/\b(sk|pk|ghp|xox[bp])[-_][A-Za-z0-9_-]{8,}\b/g, "[secret]")
+  .replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[ssn]")
+  .replace(/\b\d(?:[ -]?\d){12,15}\b/g, "[card]")
+  .replace(/(?:\+?1[ .-]?)?\(?\b\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}\b/g, "[phone]");
 
 export async function answer(env, question, trace) {
   const span = async (name, fn) => { const t0 = Date.now(); try { return await fn(); } finally { trace.push({ span: name, ms: Date.now() - t0 }); } };
