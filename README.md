@@ -20,13 +20,13 @@ flowchart LR
 ```
 
 ## How it works
-- `src/prod.js`: input guardrail, redaction regexes, traced spans, a tiny built-in eval at `/api/evals`.
-- `src/index.js`: request ids, JSON logs (Workers Logs), health check, errors that never leak internals.
-- `ci/github-actions-ci.yml`: CI workflow (unit tests + bundle check). Copy it to `.github/workflows/` to enable it.
+- `src/agent10/prod.py` and `worker/src/prod.rs`: input guardrail, redaction regexes, traced spans, a tiny built-in eval at `/api/evals`.
+- `worker/src/worker_entry.rs`: request ids, JSON logs (Workers Logs), health check, errors that never leak internals.
+- `ci/github-actions-ci.yml`: CI workflow (Python tests, Rust tests, wasm build check). Copy it to `.github/workflows/` to enable it.
 - Runs serverless on Cloudflare Workers with the free Workers AI tier (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`); 5 requests/min per IP keeps the demo free.
 
 ## Eval results
-Measured against the **live** deployment with real model calls (`node evals/run.mjs`), run 2026-10-27 19:40 CT. Raw per-case output: [`evals/results.json`](evals/results.json). Small sample sizes, kept small to stay inside the free daily model quota, so read these as indicative, not definitive.
+Measured against the **live** deployment with real model calls (`python3 evals/run.py`), run 2026-10-27 19:40 CT. Raw per-case output: [`evals/results.json`](evals/results.json). Small sample sizes, kept small to stay inside the free daily model quota, so read these as indicative, not definitive.
 
 | Metric | Result |
 |---|---|
@@ -36,16 +36,19 @@ Measured against the **live** deployment with real model calls (`node evals/run.
 | Latency p50 / p95 (end-to-end HTTP) | 506 ms / 10614 ms (n=25) |
 
 ## Tests
-11/11 unit tests pass (`npm test`, Node 20+, the LLM is mocked so they run offline).
+Python: 6 test functions pass; Rust: 3 test functions pass (the LLM is mocked, so they run offline). A corpus of 34 redaction strings (emails, SSNs, cards, phones, tokens, non-ASCII text), five Llama Guard replies, three guarded answers and four eval runs give identical output for the old JavaScript, the Python and the Rust code. The redaction rules use ASCII word boundaries in all three.
 
 ## Run it
 ```bash
-npm install
-npm test               # offline unit tests
-node evals/run.mjs     # live evals (BASE=http://localhost:8787 for local)
-npx wrangler dev       # local; Workers AI via your Cloudflare login
-npx wrangler deploy    # free tier, no paid API keys
+python3 -m pytest                      # Python tests
+cd worker && cargo test                # Rust tests
+cd worker && worker-build --release    # build the Worker (wasm)
+BASE=http://localhost:8787 python3 evals/run.py   # live evals
+wrangler dev                           # local; Workers AI via your Cloudflare login
+wrangler deploy                        # free tier, no paid API keys
 ```
+
+The previous JavaScript version is on the `legacy-js` branch and the `pre-pycrust` tag. `worker/wrangler.toml` now sets `[observability] enabled = true`, which the old comment in the code already assumed.
 
 ## License
 MIT
